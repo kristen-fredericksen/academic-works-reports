@@ -69,14 +69,20 @@ with tab_overview:
     col3.metric("OERs", f"{counts['oers']:,}")
     col4.metric("Archives", f"{counts['arch']:,}")
 
-    st.markdown("#### Records added per year")
+    st.markdown("#### Records by publication year")
     year_df = df[df["year"].str.match(r"^\d{4}$", na=False)].copy()
     year_df["year"] = year_df["year"].astype(int)
-    year_df = year_df[year_df["year"] >= 2010]
-    year_counts = year_df.groupby("year").size().reset_index(name="records")
+    recent = year_df[year_df["year"] >= 2010]
+    year_counts = recent.groupby("year").size().reset_index(name="records")
     st.bar_chart(year_counts, x="year", y="records", height=300)
 
-    st.caption(f"Showing {len(year_df):,} records with a parsable year (out of {total_records:,} total)")
+    earlier_count = len(year_df) - len(recent)
+    earliest_year = int(year_df["year"].min()) if len(year_df) else None
+    st.caption(
+        f"Showing {len(recent):,} records published 2010 or later. "
+        f"{earlier_count:,} earlier records (back to {earliest_year}) are excluded "
+        "to keep the chart readable — mostly digitized historical material."
+    )
 
 # ---------------------------------------------------------------------------
 # Health check
