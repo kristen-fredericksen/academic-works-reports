@@ -24,9 +24,6 @@ st.set_page_config(
 with st.sidebar:
     st.title("Academic Works reports")
     st.caption(f"Data refreshed {harvest_timestamp()}")
-    if st.button("Refresh data", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
 
 df = load_records()
 total_records = len(df)
