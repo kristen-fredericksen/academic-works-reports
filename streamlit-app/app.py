@@ -49,10 +49,11 @@ def excel_download(dataframe: pd.DataFrame, filename: str, label: str = "Downloa
 
 # --- Tabs --------------------------------------------------------------------
 
-tab_overview, tab_health, tab_by_school, tab_search, tab_changes = st.tabs([
+tab_overview, tab_health, tab_by_school, tab_by_series, tab_search, tab_changes = st.tabs([
     "Overview",
     "Health check",
     "By school",
+    "By series",
     "Find a record",
     "What's new",
 ])
@@ -123,8 +124,20 @@ with tab_by_school:
     )
 
     col1, col2 = st.columns(2)
-    selected_schools = col1.multiselect("Schools", school_options, default=[])
-    selected_years = col2.multiselect("Years", year_options, default=[])
+    selected_schools = col1.multiselect(
+        "Schools (select one or more)",
+        school_options,
+        default=[],
+        placeholder="Pick one or more schools...",
+        help="Click to add a school. Click another to add it too. Leave empty to show all schools.",
+    )
+    selected_years = col2.multiselect(
+        "Years (select one or more)",
+        year_options,
+        default=[],
+        placeholder="Pick one or more years...",
+        help="Click to add a year. Leave empty to show all years.",
+    )
 
     filtered = df.copy()
     if selected_schools:
@@ -157,6 +170,75 @@ with tab_by_school:
 
     st.dataframe(display_table, use_container_width=True, hide_index=True)
     excel_download(display_table, "records_by_school.xlsx")
+
+# ---------------------------------------------------------------------------
+# By series
+# ---------------------------------------------------------------------------
+
+with tab_by_series:
+    st.subheader("Records by series")
+    st.caption(
+        "Every series in Academic Works with its record count. "
+        "Use the filters to narrow by school or year."
+    )
+
+    series_school_options = sorted(df["school"].unique().tolist())
+    series_year_options = sorted(
+        df[df["year"].str.match(r"^\d{4}$", na=False)]["year"].unique().tolist(),
+        reverse=True,
+    )
+
+    col1, col2 = st.columns(2)
+    series_selected_schools = col1.multiselect(
+        "Schools (select one or more)",
+        series_school_options,
+        default=[],
+        placeholder="Pick one or more schools...",
+        help="Narrow the table to specific schools. Leave empty to show all.",
+        key="series_schools",
+    )
+    series_selected_years = col2.multiselect(
+        "Years (select one or more)",
+        series_year_options,
+        default=[],
+        placeholder="Pick one or more years...",
+        help="Narrow the table to specific years. Leave empty to show all.",
+        key="series_years",
+    )
+
+    series_filtered = df[~df["series"].isin(CONTAINER_SETS)].copy()
+    if series_selected_schools:
+        series_filtered = series_filtered[series_filtered["school"].isin(series_selected_schools)]
+    if series_selected_years:
+        series_filtered = series_filtered[series_filtered["year"].isin(series_selected_years)]
+
+    series_table = (
+        series_filtered.groupby(["series", "school"])
+        .agg(
+            theses=("in_etds", "sum"),
+            pubs=("in_pubs", "sum"),
+            oers=("in_oers", "sum"),
+            archives=("in_arch", "sum"),
+            total=("identifier", "count"),
+        )
+        .sort_values("total", ascending=False)
+        .reset_index()
+    )
+
+    series_totals_row = pd.DataFrame([{
+        "series": "All series",
+        "school": "—",
+        "theses": int(series_table["theses"].sum()),
+        "pubs": int(series_table["pubs"].sum()),
+        "oers": int(series_table["oers"].sum()),
+        "archives": int(series_table["archives"].sum()),
+        "total": int(series_table["total"].sum()),
+    }])
+    series_display_table = pd.concat([series_table, series_totals_row], ignore_index=True)
+
+    st.caption(f"{len(series_table):,} series")
+    st.dataframe(series_display_table, use_container_width=True, hide_index=True)
+    excel_download(series_display_table, "records_by_series.xlsx")
 
 # ---------------------------------------------------------------------------
 # Find a record
