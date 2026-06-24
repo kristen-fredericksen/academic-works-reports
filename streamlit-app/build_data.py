@@ -4,6 +4,7 @@ Run this after each harvest. The app loads from these Parquet files, not from
 the raw XML, so the deployed repo stays small.
 """
 
+import json
 import os
 import sys
 
@@ -21,6 +22,17 @@ from data_loader import (
 OUT_DIR = os.path.join(os.path.dirname(__file__), "data")
 RECORDS_PATH = os.path.join(OUT_DIR, "records.parquet")
 BACKUP_IDS_PATH = os.path.join(OUT_DIR, "backup_ids.parquet")
+HARVEST_INFO_PATH = os.path.join(OUT_DIR, "harvest_info.json")
+
+
+def _xml_harvest_date(data_dir: str) -> str:
+    """Return the most recent mtime across XML files as a 'June 16, 2026' string."""
+    import pandas as pd
+    files = [os.path.join(data_dir, f) for f in os.listdir(data_dir) if f.endswith(".xml")]
+    if not files:
+        return ""
+    latest = max(os.path.getmtime(f) for f in files)
+    return pd.Timestamp(latest, unit="s").strftime("%B %-d, %Y")
 
 
 def main():
@@ -33,6 +45,11 @@ def main():
     df.to_parquet(RECORDS_PATH, compression="zstd", index=False)
     size_mb = os.path.getsize(RECORDS_PATH) / 1024 / 1024
     print(f"Wrote {RECORDS_PATH} ({size_mb:.1f} MB)")
+
+    harvest_date = _xml_harvest_date(DATA_DIR)
+    with open(HARVEST_INFO_PATH, "w") as f:
+        json.dump({"harvest_date": harvest_date}, f)
+    print(f"Recorded harvest date: {harvest_date}")
 
     print(f"\nReading backup identifiers from {BACKUP_DIR}...")
     ids = load_backup_identifiers.__wrapped__(BACKUP_DIR)

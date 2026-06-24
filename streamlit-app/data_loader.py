@@ -20,6 +20,7 @@ BACKUP_DIR = os.path.join(PROJECT_DIR, "data", "oai_dc_20260405")
 BUNDLE_DIR = os.path.join(APP_DIR, "data")
 RECORDS_PARQUET = os.path.join(BUNDLE_DIR, "records.parquet")
 BACKUP_IDS_PARQUET = os.path.join(BUNDLE_DIR, "backup_ids.parquet")
+HARVEST_INFO_PATH = os.path.join(BUNDLE_DIR, "harvest_info.json")
 
 COMBINED_SETS = ["etds", "pubs", "oers", "arch"]
 
@@ -212,9 +213,13 @@ def load_backup_identifiers(backup_dir: str = BACKUP_DIR) -> set:
 
 def harvest_timestamp(data_dir: str = DATA_DIR) -> str:
     """Return a human-readable timestamp from when the data was last harvested."""
-    if os.path.exists(RECORDS_PARQUET):
-        latest = os.path.getmtime(RECORDS_PARQUET)
-        return pd.Timestamp(latest, unit="s").strftime("%B %-d, %Y")
+    if os.path.exists(HARVEST_INFO_PATH):
+        import json
+        with open(HARVEST_INFO_PATH) as f:
+            info = json.load(f)
+        if info.get("harvest_date"):
+            return info["harvest_date"]
+
     if not os.path.isdir(data_dir):
         return "unknown"
     files = [os.path.join(data_dir, f) for f in os.listdir(data_dir) if f.endswith(".xml")]
